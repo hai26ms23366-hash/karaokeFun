@@ -75,8 +75,24 @@ function showLobby(roomName, roomCode) {
     new QRCode(qrContainer, {
         text: joinUrl,
         width: 256,
-        height: 256
+        height: 256,
+        colorDark : "#000000",
+        colorLight : "#ffffff",
+        correctLevel : QRCode.CorrectLevel.L
     });
+    
+    // Display the URL explicitly so the user can verify or type it
+    const urlDisplay = document.getElementById('lobby-url-display') || document.createElement('div');
+    urlDisplay.id = 'lobby-url-display';
+    urlDisplay.style.marginTop = '1rem';
+    urlDisplay.style.fontSize = '1.2rem';
+    urlDisplay.style.wordBreak = 'break-all';
+    urlDisplay.style.color = 'var(--text-secondary)';
+    urlDisplay.innerText = joinUrl;
+    
+    if (!document.getElementById('lobby-url-display')) {
+        qrContainer.parentNode.insertBefore(urlDisplay, qrContainer.nextSibling);
+    }
 }
 
 // Start Session (Open Player)
@@ -99,8 +115,11 @@ async function handleStartSession() {
                 qrSmallContainer.innerHTML = '';
                 new QRCode(qrSmallContainer, {
                     text: joinUrl,
-                    width: 80,
-                    height: 80
+                    width: 120,
+                    height: 120,
+                    colorDark : "#000000",
+                    colorLight : "#ffffff",
+                    correctLevel : QRCode.CorrectLevel.L
                 });
                 
                 setupRealtimeListeners();
