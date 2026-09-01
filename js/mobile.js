@@ -17,7 +17,15 @@ const toastEl = document.getElementById('toast');
 let roomCode = null;
 let currentQueueId = null;
 
-// Initialization
+const MAX_SEARCH_RESULTS = 30;
+let discoverScrollPos = 0;
+let currentSearchState = {
+    params: null,
+    nextPageToken: null,
+    resultCount: 0,
+    loading: false,
+    displayedIds: new Set()
+};
 async function init() {
     const params = new URLSearchParams(window.location.search);
     roomCode = params.get("r");
@@ -83,12 +91,24 @@ function setupTabs() {
     
     navItems.forEach(item => {
         item.addEventListener('click', () => {
+            const currentActive = document.querySelector('.nav-item.active');
+            const targetId = item.getAttribute('data-target');
+            
+            // Save scroll pos if leaving discover
+            if (currentActive && currentActive.getAttribute('data-target') === 'tab-discover') {
+                discoverScrollPos = document.querySelector('.content-area').scrollTop;
+            }
+            
             navItems.forEach(nav => nav.classList.remove('active'));
             tabContents.forEach(tab => tab.classList.add('hidden'));
             
             item.classList.add('active');
-            const targetId = item.getAttribute('data-target');
             document.getElementById(targetId).classList.remove('hidden');
+            
+            // Restore scroll pos if returning to discover
+            if (targetId === 'tab-discover') {
+                document.querySelector('.content-area').scrollTop = discoverScrollPos;
+            }
         });
     });
 }
@@ -102,7 +122,7 @@ function renderDiscoverTab() {
         chip.innerText = cat.label;
         chip.addEventListener('click', () => {
             switchToTab('tab-search');
-            performSearch({ categoryQuery: cat.searchQuery });
+            performSearch({ categoryQuery: cat.searchQuery, _label: cat.label, _type: 'category' });
         });
         categoriesGrid.appendChild(chip);
     });
@@ -114,13 +134,18 @@ function renderDiscoverTab() {
         chip.innerText = artist.name;
         chip.addEventListener('click', () => {
             switchToTab('tab-search');
-            performSearch({ artist: artist.name });
+            performSearch({ artist: artist.name, _type: 'artist' });
         });
         artistsScroll.appendChild(chip);
     });
 }
 
 function switchToTab(tabId) {
+    const currentActive = document.querySelector('.nav-item.active');
+    if (currentActive && currentActive.getAttribute('data-target') === 'tab-discover') {
+        discoverScrollPos = document.querySelector('.content-area').scrollTop;
+    }
+    
     document.querySelectorAll('.nav-item').forEach(nav => {
         if (nav.getAttribute('data-target') === tabId) {
             nav.classList.add('active');
@@ -132,6 +157,12 @@ function switchToTab(tabId) {
         if (tab.id === tabId) tab.classList.remove('hidden');
         else tab.classList.add('hidden');
     });
+    
+    if (tabId === 'tab-search') {
+        document.querySelector('.content-area').scrollTop = 0;
+    } else if (tabId === 'tab-discover') {
+        document.querySelector('.content-area').scrollTop = discoverScrollPos;
+    }
 }
 
 function setupSearch() {
@@ -144,7 +175,15 @@ function setupSearch() {
         const artist = inputArtist.value;
         if (keyword.trim().length < 2 && artist.trim().length < 2) return;
         
-        performSearch({ keyword, artist });
+        // Remove focus to dismiss keyboard on mobile
+        inputKeyword.blur();
+        inputArtist.blur();
+        
+        let _type = 'song';
+        if (keyword && artist) _type = 'combined';
+        else if (artist) _type = 'artist';
+        
+        performSearch({ keyword, artist, _type });
     };
     
     btnSearch.addEventListener('click', triggerSearch);
@@ -154,6 +193,12 @@ function setupSearch() {
     };
     inputKeyword.addEventListener('keypress', onEnter);
     inputArtist.addEventListener('keypress', onEnter);
+    
+    document.getElementById('btn-load-more').addEventListener('click', () => {
+        if (currentSearchState.params && currentSearchState.nextPageToken) {
+            performSearch(currentSearchState.params, true);
+        }
+    });
 }
 
 let lastSearchResultsHTML = '<div class="empty-state">Nhập tên bài hát hoặc ca sĩ để tìm kiếm</div>';
@@ -169,15 +214,46 @@ function showSearchStatus(msg, type = 'info') {
     statusEl.classList.remove('hidden');
 }
 
-async function performSearch(params) {
+async function performSearch(params, isLoadMore = false) {
+    if (currentSearchState.loading) return;
+    
     const resultsContainer = document.getElementById('search-results');
+    const loadMoreBtn = document.getElementById('btn-load-more');
+    const searchHeader = document.getElementById('search-header-text');
     
-    // Set UI to loading, but keep old results visible underneath the overlay/status if preferred.
-    // For MVP, we will dim the results list and show loading status.
-    showSearchStatus('Đang tìm kiếm...', 'loading');
-    resultsContainer.style.opacity = '0.5';
+    // Update header context only on new search
+    if (!isLoadMore) {
+        document.getElementById('search-header').classList.remove('hidden');
+        if (params._type === 'category') {
+            searchHeader.innerText = params.categoryQuery === 'nhạc hot tiktok karaoke' ? 'Khám phá: Hot TikTok' : `Thể loại: ${params._label}`;
+        } else if (params._type === 'artist') {
+            searchHeader.innerText = `Ca sĩ: ${params.artist}`;
+        } else if (params._type === 'combined') {
+            searchHeader.innerHTML = `Kết quả cho: <strong>${escapeHTML(params.keyword)}</strong><br>Ca sĩ: ${escapeHTML(params.artist)}`;
+        } else {
+            searchHeader.innerHTML = `Kết quả cho: <strong>${escapeHTML(params.keyword)}</strong>`;
+        }
+        
+        // Reset state for new search
+        currentSearchState = {
+            params: params,
+            nextPageToken: null,
+            resultCount: 0,
+            loading: true,
+            displayedIds: new Set()
+        };
+        showSearchStatus('Đang tìm kiếm...', 'loading');
+        resultsContainer.style.opacity = '0.5';
+        if (loadMoreBtn) loadMoreBtn.classList.add('hidden');
+    } else {
+        currentSearchState.loading = true;
+        if (loadMoreBtn) loadMoreBtn.innerText = 'ĐANG TẢI...';
+    }
     
-    const response = await searchYouTube(params);
+    const pageTokenToUse = isLoadMore ? currentSearchState.nextPageToken : "";
+    const response = await searchYouTube(currentSearchState.params, pageTokenToUse);
+    
+    currentSearchState.loading = false;
     
     if (response.aborted) {
         return; // Ignore aborted requests
@@ -186,26 +262,46 @@ async function performSearch(params) {
     resultsContainer.style.opacity = '1';
     
     if (response.errorMsg) {
-        showSearchStatus(response.errorMsg, 'error');
-        resultsContainer.innerHTML = lastSearchResultsHTML; // Restore previous good state
+        if (!isLoadMore) {
+            showSearchStatus(response.errorMsg, 'error');
+            resultsContainer.innerHTML = lastSearchResultsHTML;
+        } else {
+            if (loadMoreBtn) {
+                loadMoreBtn.innerText = 'THỬ LẠI';
+                loadMoreBtn.classList.remove('hidden');
+            }
+            showToast(response.errorMsg, true);
+        }
         return;
     }
     
     showSearchStatus(null);
-    renderSearchResults(response.results);
+    currentSearchState.nextPageToken = response.nextPageToken;
+    renderSearchResults(response.results, isLoadMore);
 }
 
-function renderSearchResults(results) {
+function renderSearchResults(results, append = false) {
     const container = document.getElementById('search-results');
-    container.innerHTML = '';
+    const loadMoreBtn = document.getElementById('btn-load-more');
     
-    if (results.length === 0) {
+    if (!append) {
+        container.innerHTML = '';
+        currentSearchState.resultCount = 0;
+        currentSearchState.displayedIds.clear();
+    }
+    
+    if (results.length === 0 && !append) {
         lastSearchResultsHTML = '<div class="empty-state">Không tìm thấy kết quả phù hợp.</div>';
         container.innerHTML = lastSearchResultsHTML;
+        if (loadMoreBtn) loadMoreBtn.classList.add('hidden');
         return;
     }
     
     results.forEach(video => {
+        if (currentSearchState.displayedIds.has(video.id)) return; // Deduplicate
+        currentSearchState.displayedIds.add(video.id);
+        currentSearchState.resultCount++;
+        
         const item = document.createElement('div');
         item.className = 'video-item';
         
@@ -229,7 +325,6 @@ function renderSearchResults(results) {
         btnAdd.addEventListener('click', async () => {
             btnAdd.disabled = true;
             try {
-                // Fetch user display name locally (ideally we store this on app state after join)
                 const nickname = document.getElementById('nickname').value.trim() || 'Khách';
                 await addToQueue(roomCode, video, nickname);
                 showToast("Đã thêm vào hàng đợi");
@@ -244,6 +339,20 @@ function renderSearchResults(results) {
     });
     
     lastSearchResultsHTML = container.innerHTML;
+    
+    if (loadMoreBtn) {
+        if (currentSearchState.nextPageToken && currentSearchState.resultCount < MAX_SEARCH_RESULTS) {
+            loadMoreBtn.innerText = 'XEM THÊM';
+            loadMoreBtn.classList.remove('hidden');
+        } else if (currentSearchState.resultCount >= MAX_SEARCH_RESULTS) {
+            loadMoreBtn.innerText = `Đã hiển thị ${currentSearchState.resultCount} kết quả`;
+            loadMoreBtn.classList.remove('hidden');
+            loadMoreBtn.disabled = true;
+            loadMoreBtn.style.opacity = '0.5';
+        } else {
+            loadMoreBtn.classList.add('hidden');
+        }
+    }
 }
 
 function setupControls() {

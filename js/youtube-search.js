@@ -7,15 +7,17 @@ let currentSearchController = null;
 /**
  * Normalizes query string for caching
  */
-function getCacheKey(query) {
-    return "karaoke_search_" + query.trim().toLowerCase().replace(/\s+/g, ' ');
+function getCacheKey(query, pageToken = "") {
+    let key = "karaoke_search_" + query.trim().toLowerCase().replace(/\s+/g, ' ');
+    if (pageToken) key += "_" + pageToken;
+    return key;
 }
 
 /**
  * Retrieves data from in-memory or localStorage cache
  */
-function getFromCache(query) {
-    const key = getCacheKey(query);
+function getFromCache(query, pageToken = "") {
+    const key = getCacheKey(query, pageToken);
     
     // Memory cache
     if (searchCache[key]) {
@@ -43,8 +45,8 @@ function getFromCache(query) {
 /**
  * Saves data to in-memory and localStorage cache
  */
-function saveToCache(query, data) {
-    const key = getCacheKey(query);
+function saveToCache(query, pageToken = "", data) {
+    const key = getCacheKey(query, pageToken);
     searchCache[key] = data;
     try {
         localStorage.setItem(key, JSON.stringify({
@@ -82,16 +84,16 @@ export function buildSearchQuery({ keyword = "", artist = "", categoryQuery = ""
  * @param {Object} queryParameters 
  * @returns {Promise<Object>} { results, query, aborted, errorMsg }
  */
-export async function searchYouTube(queryParameters) {
+export async function searchYouTube(queryParameters, pageToken = "") {
     const searchQuery = buildSearchQuery(queryParameters);
     
     if (!searchQuery) {
         return { results: [], query: "" };
     }
 
-    const cachedResults = getFromCache(searchQuery);
-    if (cachedResults) {
-        return { results: cachedResults, query: searchQuery };
+    const cached = getFromCache(searchQuery, pageToken);
+    if (cached) {
+        return { results: cached.results, nextPageToken: cached.nextPageToken, query: searchQuery };
     }
 
     if (YOUTUBE_API_KEY === "YOUR_YOUTUBE_API_KEY" || !YOUTUBE_API_KEY) {
@@ -117,6 +119,10 @@ export async function searchYouTube(queryParameters) {
     url.searchParams.append("order", "relevance");
     url.searchParams.append("q", searchQuery);
     url.searchParams.append("key", YOUTUBE_API_KEY);
+
+    if (pageToken) {
+        url.searchParams.append("pageToken", pageToken);
+    }
 
     try {
         const response = await fetch(url, { signal });
@@ -161,7 +167,7 @@ export async function searchYouTube(queryParameters) {
 
             return {
                 id: item.id.videoId,
-                title: rawTitle, // Keep original title for fallback/player
+                title: rawTitle,
                 channelTitle: channel,
                 thumbnailUrl: item.snippet.thumbnails.default.url,
                 parsed: {
@@ -173,8 +179,9 @@ export async function searchYouTube(queryParameters) {
             };
         });
 
-        saveToCache(searchQuery, results);
-        return { results, query: searchQuery };
+        const cacheData = { results, nextPageToken: data.nextPageToken || null };
+        saveToCache(searchQuery, pageToken, cacheData);
+        return { results, nextPageToken: cacheData.nextPageToken, query: searchQuery };
         
     } catch (error) {
         if (error.name === 'AbortError') {
