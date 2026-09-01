@@ -28,10 +28,18 @@
         <div class="room-code-display">
             Mã phòng: <span id="lobby-room-code"></span>
         </div>
-        <div class="qr-container" id="lobby-qr"></div>
-        <p class="qr-instruction">Quét QR để chọn bài</p>
-        <button id="btn-start-session" class="btn-primary">BẮT ĐẦU PHIÊN HÁT</button>
-        <button id="btn-close-room-lobby" class="btn-secondary" style="margin-top: 1rem;">ĐÓNG PHÒNG</button>
+        
+        <div class="lobby-content-row">
+            <div class="lobby-qr-section">
+                <div class="qr-container" id="lobby-qr"></div>
+                <p class="qr-instruction">Quét QR để chọn bài</p>
+            </div>
+            
+            <div class="lobby-action-section">
+                <button id="btn-start-session" class="btn-primary">BẮT ĐẦU PHIÊN HÁT</button>
+                <button id="btn-close-room-lobby" class="btn-secondary">ĐÓNG PHÒNG</button>
+            </div>
+        </div>
     </div>
 
     <!-- STATE 3: Playing -->
