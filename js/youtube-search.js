@@ -53,12 +53,44 @@ export async function searchYouTube(query) {
         }
         const data = await response.json();
         
-        const results = data.items.map(item => ({
-            id: item.id.videoId,
-            title: item.snippet.title,
-            channelTitle: item.snippet.channelTitle,
-            thumbnailUrl: item.snippet.thumbnails.default.url
-        }));
+        const results = data.items.map(item => {
+            const rawTitle = item.snippet.title;
+            const channel = item.snippet.channelTitle;
+            
+            // Extract Tone
+            let tone = "";
+            const toneMatch = rawTitle.match(/(tone\s+nam|tone\s+nữ|giọng\s+nam|giọng\s+nữ|song\s+ca)/i);
+            if (toneMatch) {
+                tone = toneMatch[0];
+            }
+            
+            // Clean title
+            let cleanTitle = rawTitle
+                .replace(/(karaoke|beat chuẩn|beat|hd|official|lyric|video|mv)/gi, "")
+                .replace(/(tone\s+nam|tone\s+nữ|giọng\s+nam|giọng\s+nữ|song\s+ca)/gi, "")
+                .replace(/\[.*?\]|\(.*?\)/g, "") // remove text in brackets
+                .replace(/\s+/g, " ") // reduce multiple spaces
+                .trim();
+                
+            // Split by common delimiters (- | ~)
+            let parts = cleanTitle.split(/[-|~]/).map(p => p.trim()).filter(p => p.length > 0);
+            
+            let songName = parts[0] || rawTitle;
+            let author = parts.length > 1 ? parts.slice(1).join(" - ") : "";
+
+            return {
+                id: item.id.videoId,
+                title: rawTitle, // Keep original title for fallback/player
+                channelTitle: channel,
+                thumbnailUrl: item.snippet.thumbnails.default.url,
+                parsed: {
+                    songName: songName,
+                    tone: tone,
+                    author: author,
+                    producer: channel
+                }
+            };
+        });
 
         searchCache[searchQuery] = results;
         return results;

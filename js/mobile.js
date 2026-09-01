@@ -133,11 +133,18 @@ function renderSearchResults(results) {
         const item = document.createElement('div');
         item.className = 'video-item';
         
+        const parsed = video.parsed || {};
+        const titleDisplay = parsed.songName ? parsed.songName : video.title;
+        
         item.innerHTML = `
             <img src="${video.thumbnailUrl}" class="video-thumb" alt="Thumbnail">
             <div class="video-info">
-                <div class="video-title">${escapeHTML(video.title)}</div>
-                <div class="video-channel">${escapeHTML(video.channelTitle)}</div>
+                <div class="video-title">${escapeHTML(titleDisplay)}</div>
+                <div class="video-meta">
+                    ${parsed.author ? `<span class="tag author">🎤 ${escapeHTML(parsed.author)}</span>` : ''}
+                    ${parsed.tone ? `<span class="tag tone">${escapeHTML(parsed.tone.toUpperCase())}</span>` : ''}
+                    <span class="tag channel">🎬 ${escapeHTML(parsed.producer || video.channelTitle)}</span>
+                </div>
             </div>
             <button class="btn-add">+ THÊM</button>
         `;
