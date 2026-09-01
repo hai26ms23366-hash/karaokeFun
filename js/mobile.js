@@ -1,6 +1,8 @@
 import { signIn, getCurrentUid } from "./firebase-service.js";
 import { joinRoom, checkRoomExists, addToQueue, removeFromQueue, sendCommand } from "./room-service.js";
 import { searchYouTube } from "./youtube-search.js";
+import { categories } from "./music-categories.js";
+import { featuredArtists } from "./featured-artists.js";
 import { db, ref, onValue } from "./firebase-service.js";
 import { debounce, throttle } from "./utils.js";
 
@@ -69,6 +71,7 @@ async function handleJoin() {
 function setupApp() {
     setupTabs();
     setupSearch();
+    renderDiscoverTab();
     setupControls();
     setupRealtimeListeners();
     showLoading(false);
@@ -80,11 +83,9 @@ function setupTabs() {
     
     navItems.forEach(item => {
         item.addEventListener('click', () => {
-            // Remove active classes
             navItems.forEach(nav => nav.classList.remove('active'));
             tabContents.forEach(tab => tab.classList.add('hidden'));
             
-            // Add active class
             item.classList.add('active');
             const targetId = item.getAttribute('data-target');
             document.getElementById(targetId).classList.remove('hidden');
@@ -92,32 +93,106 @@ function setupTabs() {
     });
 }
 
-function setupSearch() {
-    const btnSearch = document.getElementById('btn-search');
-    const searchInput = document.getElementById('search-input');
+function renderDiscoverTab() {
+    const categoriesGrid = document.getElementById('categories-grid');
+    categories.forEach(cat => {
+        const chip = document.createElement('div');
+        chip.className = 'chip-card';
+        if (cat.id === 'hot-tiktok') chip.classList.add('highlight');
+        chip.innerText = cat.label;
+        chip.addEventListener('click', () => {
+            switchToTab('tab-search');
+            performSearch({ categoryQuery: cat.searchQuery });
+        });
+        categoriesGrid.appendChild(chip);
+    });
     
-    const performSearch = async () => {
-        const query = searchInput.value;
-        if (query.trim().length < 3) return;
-        
-        const resultsContainer = document.getElementById('search-results');
-        resultsContainer.innerHTML = '<div class="spinner" style="margin: 2rem auto; border-top-color: white;"></div>';
-        
-        try {
-            const results = await searchYouTube(query);
-            renderSearchResults(results);
-        } catch (error) {
-            console.error(error);
-            resultsContainer.innerHTML = '<div class="empty-state">Lỗi khi tìm kiếm.</div>';
-        }
-    };
-    
-    btnSearch.addEventListener('click', performSearch);
-    searchInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            performSearch();
+    const artistsScroll = document.getElementById('artists-scroll');
+    featuredArtists.forEach(artist => {
+        const chip = document.createElement('div');
+        chip.className = 'chip-card';
+        chip.innerText = artist.name;
+        chip.addEventListener('click', () => {
+            switchToTab('tab-search');
+            performSearch({ artist: artist.name });
+        });
+        artistsScroll.appendChild(chip);
+    });
+}
+
+function switchToTab(tabId) {
+    document.querySelectorAll('.nav-item').forEach(nav => {
+        if (nav.getAttribute('data-target') === tabId) {
+            nav.classList.add('active');
+        } else {
+            nav.classList.remove('active');
         }
     });
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        if (tab.id === tabId) tab.classList.remove('hidden');
+        else tab.classList.add('hidden');
+    });
+}
+
+function setupSearch() {
+    const btnSearch = document.getElementById('btn-search');
+    const inputKeyword = document.getElementById('search-keyword');
+    const inputArtist = document.getElementById('search-artist');
+    
+    const triggerSearch = () => {
+        const keyword = inputKeyword.value;
+        const artist = inputArtist.value;
+        if (keyword.trim().length < 2 && artist.trim().length < 2) return;
+        
+        performSearch({ keyword, artist });
+    };
+    
+    btnSearch.addEventListener('click', triggerSearch);
+    
+    const onEnter = (e) => {
+        if (e.key === 'Enter') triggerSearch();
+    };
+    inputKeyword.addEventListener('keypress', onEnter);
+    inputArtist.addEventListener('keypress', onEnter);
+}
+
+let lastSearchResultsHTML = '<div class="empty-state">Nhập tên bài hát hoặc ca sĩ để tìm kiếm</div>';
+
+function showSearchStatus(msg, type = 'info') {
+    const statusEl = document.getElementById('search-status');
+    if (!msg) {
+        statusEl.classList.add('hidden');
+        return;
+    }
+    statusEl.innerText = msg;
+    statusEl.className = `search-status ${type}`;
+    statusEl.classList.remove('hidden');
+}
+
+async function performSearch(params) {
+    const resultsContainer = document.getElementById('search-results');
+    
+    // Set UI to loading, but keep old results visible underneath the overlay/status if preferred.
+    // For MVP, we will dim the results list and show loading status.
+    showSearchStatus('Đang tìm kiếm...', 'loading');
+    resultsContainer.style.opacity = '0.5';
+    
+    const response = await searchYouTube(params);
+    
+    if (response.aborted) {
+        return; // Ignore aborted requests
+    }
+    
+    resultsContainer.style.opacity = '1';
+    
+    if (response.errorMsg) {
+        showSearchStatus(response.errorMsg, 'error');
+        resultsContainer.innerHTML = lastSearchResultsHTML; // Restore previous good state
+        return;
+    }
+    
+    showSearchStatus(null);
+    renderSearchResults(response.results);
 }
 
 function renderSearchResults(results) {
@@ -125,7 +200,8 @@ function renderSearchResults(results) {
     container.innerHTML = '';
     
     if (results.length === 0) {
-        container.innerHTML = '<div class="empty-state">Không tìm thấy kết quả.</div>';
+        lastSearchResultsHTML = '<div class="empty-state">Không tìm thấy kết quả phù hợp.</div>';
+        container.innerHTML = lastSearchResultsHTML;
         return;
     }
     
@@ -166,6 +242,8 @@ function renderSearchResults(results) {
         
         container.appendChild(item);
     });
+    
+    lastSearchResultsHTML = container.innerHTML;
 }
 
 function setupControls() {

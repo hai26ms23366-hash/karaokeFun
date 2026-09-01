@@ -1,36 +1,109 @@
 import { YOUTUBE_API_KEY } from "./firebase-config.js";
 
 const searchCache = {};
+const CACHE_TTL = 3600000; // 1 hour in ms
+let currentSearchController = null;
 
 /**
- * Searches YouTube Data API for karaoke videos
- * @param {string} query 
- * @returns {Promise<Array>} Array of video objects
+ * Normalizes query string for caching
  */
-export async function searchYouTube(query) {
-    if (!query || query.trim().length < 3) return [];
+function getCacheKey(query) {
+    return "karaoke_search_" + query.trim().toLowerCase().replace(/\s+/g, ' ');
+}
 
-    let searchQuery = query.trim();
-    if (!searchQuery.toLowerCase().includes("karaoke")) {
-        searchQuery += " karaoke";
+/**
+ * Retrieves data from in-memory or localStorage cache
+ */
+function getFromCache(query) {
+    const key = getCacheKey(query);
+    
+    // Memory cache
+    if (searchCache[key]) {
+        return searchCache[key];
+    }
+    
+    // LocalStorage cache
+    try {
+        const stored = localStorage.getItem(key);
+        if (stored) {
+            const parsed = JSON.parse(stored);
+            if (Date.now() - parsed.timestamp < CACHE_TTL) {
+                searchCache[key] = parsed.data; // put in memory
+                return parsed.data;
+            } else {
+                localStorage.removeItem(key);
+            }
+        }
+    } catch (e) {
+        console.error("Cache read error", e);
+    }
+    return null;
+}
+
+/**
+ * Saves data to in-memory and localStorage cache
+ */
+function saveToCache(query, data) {
+    const key = getCacheKey(query);
+    searchCache[key] = data;
+    try {
+        localStorage.setItem(key, JSON.stringify({
+            timestamp: Date.now(),
+            data: data
+        }));
+    } catch (e) {
+        console.error("Cache write error", e);
+    }
+}
+
+/**
+ * Builds the final YouTube search query based on input parameters
+ */
+export function buildSearchQuery({ keyword = "", artist = "", categoryQuery = "" }) {
+    if (categoryQuery) {
+        return categoryQuery.trim();
+    }
+    
+    const k = keyword.trim();
+    const a = artist.trim();
+    
+    if (k && a) {
+        return `${k} ${a} karaoke`;
+    } else if (k) {
+        return `${k} karaoke`;
+    } else if (a) {
+        return `${a} karaoke`;
+    }
+    return "";
+}
+
+/**
+ * Searches YouTube Data API for karaoke videos with Caching and AbortController
+ * @param {Object} queryParameters 
+ * @returns {Promise<Object>} { results, query, aborted, errorMsg }
+ */
+export async function searchYouTube(queryParameters) {
+    const searchQuery = buildSearchQuery(queryParameters);
+    
+    if (!searchQuery) {
+        return { results: [], query: "" };
     }
 
-    if (searchCache[searchQuery]) {
-        return searchCache[searchQuery];
+    const cachedResults = getFromCache(searchQuery);
+    if (cachedResults) {
+        return { results: cachedResults, query: searchQuery };
     }
 
     if (YOUTUBE_API_KEY === "YOUR_YOUTUBE_API_KEY" || !YOUTUBE_API_KEY) {
-        console.warn("YouTube API Key is not configured. Returning mock data.");
-        // Mock data for MVP testing if no key is provided
-        return [
-            {
-                id: "MOCK_ID_1",
-                title: `${searchQuery} - Mock Video 1`,
-                channelTitle: "Karaoke Channel",
-                thumbnailUrl: "https://via.placeholder.com/120x68"
-            }
-        ];
+        return { errorMsg: "API Key chưa được cấu hình (API key not configured)." };
     }
+
+    // Cancel previous ongoing request
+    if (currentSearchController) {
+        currentSearchController.abort();
+    }
+    currentSearchController = new AbortController();
+    const signal = currentSearchController.signal;
 
     const url = new URL("https://www.googleapis.com/youtube/v3/search");
     url.searchParams.append("part", "snippet");
@@ -46,11 +119,19 @@ export async function searchYouTube(query) {
     url.searchParams.append("key", YOUTUBE_API_KEY);
 
     try {
-        const response = await fetch(url);
+        const response = await fetch(url, { signal });
+        
         if (!response.ok) {
             const errorData = await response.json();
-            throw new Error(errorData.error?.message || "YouTube API Error");
+            const msg = errorData.error?.message || "Lỗi API YouTube";
+            
+            // Check for quota exceeded
+            if (errorData.error?.errors?.[0]?.reason === "quotaExceeded") {
+                return { errorMsg: "Đã vượt quá giới hạn lượt tìm kiếm trong ngày (Quota exceeded)." };
+            }
+            return { errorMsg: msg };
         }
+        
         const data = await response.json();
         
         const results = data.items.map(item => {
@@ -92,10 +173,14 @@ export async function searchYouTube(query) {
             };
         });
 
-        searchCache[searchQuery] = results;
-        return results;
+        saveToCache(searchQuery, results);
+        return { results, query: searchQuery };
+        
     } catch (error) {
+        if (error.name === 'AbortError') {
+            return { aborted: true };
+        }
         console.error("Error searching YouTube:", error);
-        throw error;
+        return { errorMsg: "Lỗi kết nối mạng hoặc API." };
     }
 }
