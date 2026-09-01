@@ -1,9 +1,9 @@
-import { signIn, getCurrentUid } from "./firebase-service.js";
-import { joinRoom, checkRoomExists, addToQueue, removeFromQueue, sendCommand } from "./room-service.js";
-import { searchYouTube } from "./youtube-search.js";
-import { categories } from "./music-categories.js";
-import { featuredArtists } from "./featured-artists.js";
-import { db, ref, onValue } from "./firebase-service.js";
+import { signIn, getCurrentUid } from "./firebase-service.js?v=4";
+import { joinRoom, checkRoomExists, addToQueue, removeFromQueue, sendCommand } from "./room-service.js?v=4";
+import { searchYouTube } from "./youtube-search.js?v=4";
+import { categories } from "./music-categories.js?v=4";
+import { featuredArtists } from "./featured-artists.js?v=4";
+import { db, ref, onValue } from "./firebase-service.js?v=4";
 import { debounce, throttle } from "./utils.js";
 
 // DOM Elements
@@ -335,7 +335,7 @@ function renderSearchResults(results, append = false) {
             } else {
                 transHtml = `
                     <div class="transparency-line">
-                        🛡 Minh bạch bản quyền: ${video.copyright.score}% • ${video.copyright.level}
+                        🛡 Copyright check: ${video.copyright.score}% • ${video.copyright.level}
                         <button class="btn-transparency-details" data-id="${video.id}">[ Xem chi tiết ]</button>
                     </div>
                 `;
@@ -386,6 +386,8 @@ function renderSearchResults(results, append = false) {
         if (currentSearchState.nextPageToken && currentSearchState.resultCount < MAX_SEARCH_RESULTS) {
             loadMoreBtn.innerText = 'XEM THÊM';
             loadMoreBtn.classList.remove('hidden');
+            loadMoreBtn.disabled = false;
+            loadMoreBtn.style.opacity = '1';
         } else if (currentSearchState.resultCount >= MAX_SEARCH_RESULTS) {
             loadMoreBtn.innerText = `Đã hiển thị ${currentSearchState.resultCount} kết quả`;
             loadMoreBtn.classList.remove('hidden');
