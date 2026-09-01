@@ -93,11 +93,15 @@ export async function searchYouTube(queryParameters, pageToken = "") {
 
     const cached = getFromCache(searchQuery, pageToken);
     if (cached) {
-        // Handle legacy cache format (array)
+        // Handle legacy cache format (array) - ignore and fetch fresh to get nextPageToken
         if (Array.isArray(cached)) {
-            return { results: cached, nextPageToken: null, query: searchQuery };
+            const key = getCacheKey(searchQuery, pageToken);
+            delete searchCache[key];
+            try { localStorage.removeItem(key); } catch (e) {}
+            // fall through to fetch fresh
+        } else {
+            return { results: cached.results || [], nextPageToken: cached.nextPageToken || null, query: searchQuery };
         }
-        return { results: cached.results || [], nextPageToken: cached.nextPageToken || null, query: searchQuery };
     }
 
     if (YOUTUBE_API_KEY === "YOUR_YOUTUBE_API_KEY" || !YOUTUBE_API_KEY) {
