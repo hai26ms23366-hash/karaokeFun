@@ -24,7 +24,8 @@ let currentSearchState = {
     nextPageToken: null,
     resultCount: 0,
     loading: false,
-    displayedIds: new Set()
+    displayedIds: new Set(),
+    allResults: []
 };
 async function init() {
     const params = new URLSearchParams(window.location.search);
@@ -240,7 +241,8 @@ async function performSearch(params, isLoadMore = false) {
             nextPageToken: null,
             resultCount: 0,
             loading: true,
-            displayedIds: new Set()
+            displayedIds: new Set(),
+            allResults: []
         };
         showSearchStatus('Đang tìm kiếm...', 'loading');
         resultsContainer.style.opacity = '0.5';
@@ -285,28 +287,60 @@ function renderSearchResults(results, append = false) {
     const loadMoreBtn = document.getElementById('btn-load-more');
     
     if (!append) {
-        container.innerHTML = '';
         currentSearchState.resultCount = 0;
         currentSearchState.displayedIds.clear();
+        currentSearchState.allResults = [];
     }
     
-    if (results.length === 0 && !append) {
+    results.forEach(video => {
+        if (currentSearchState.displayedIds.has(video.id)) return; // Deduplicate
+        currentSearchState.displayedIds.add(video.id);
+        
+        video.originalIndex = currentSearchState.allResults.length;
+        currentSearchState.allResults.push(video);
+    });
+    
+    currentSearchState.resultCount = currentSearchState.allResults.length;
+    
+    if (currentSearchState.resultCount === 0) {
         lastSearchResultsHTML = '<div class="empty-state">Không tìm thấy kết quả phù hợp.</div>';
         container.innerHTML = lastSearchResultsHTML;
         if (loadMoreBtn) loadMoreBtn.classList.add('hidden');
         return;
     }
     
-    results.forEach(video => {
-        if (currentSearchState.displayedIds.has(video.id)) return; // Deduplicate
-        currentSearchState.displayedIds.add(video.id);
-        currentSearchState.resultCount++;
-        
+    // Sort allResults by transparency score DESC, then originalIndex ASC
+    const sortedResults = [...currentSearchState.allResults].sort((a, b) => {
+        const scoreA = a.copyright ? a.copyright.score : 0;
+        const scoreB = b.copyright ? b.copyright.score : 0;
+        if (scoreB !== scoreA) {
+            return scoreB - scoreA;
+        }
+        return a.originalIndex - b.originalIndex;
+    });
+    
+    container.innerHTML = '';
+    
+    sortedResults.forEach(video => {
         const item = document.createElement('div');
         item.className = 'video-item';
         
         const parsed = video.parsed || {};
         const titleDisplay = parsed.songName ? parsed.songName : video.title;
+        
+        let transHtml = '';
+        if (video.copyright) {
+            if (video.copyright.fetchFailed) {
+                transHtml = `<div class="transparency-line error">🛡 Thông tin bản quyền chưa khả dụng</div>`;
+            } else {
+                transHtml = `
+                    <div class="transparency-line">
+                        🛡 Minh bạch bản quyền: ${video.copyright.score}% • ${video.copyright.level}
+                        <button class="btn-transparency-details" data-id="${video.id}">[ Xem chi tiết ]</button>
+                    </div>
+                `;
+            }
+        }
         
         item.innerHTML = `
             <img src="${video.thumbnailUrl}" class="video-thumb" alt="Thumbnail">
@@ -317,6 +351,7 @@ function renderSearchResults(results, append = false) {
                     ${parsed.tone ? `<span class="tag tone">${escapeHTML(parsed.tone.toUpperCase())}</span>` : ''}
                     <span class="tag channel">🎬 ${escapeHTML(parsed.producer || video.channelTitle)}</span>
                 </div>
+                ${transHtml}
             </div>
             <button class="btn-add">+ THÊM</button>
         `;
@@ -334,6 +369,13 @@ function renderSearchResults(results, append = false) {
                 btnAdd.disabled = false;
             }
         });
+        
+        const btnDetails = item.querySelector('.btn-transparency-details');
+        if (btnDetails) {
+            btnDetails.addEventListener('click', () => {
+                showCopyrightModal(video);
+            });
+        }
         
         container.appendChild(item);
     });
@@ -504,6 +546,35 @@ function showToast(msg, isError = false) {
     setTimeout(() => {
         toastEl.classList.add('hidden');
     }, 3000);
+}
+
+// Show modal
+function showCopyrightModal(video) {
+    const modal = document.getElementById('copyright-modal');
+    if (!modal || !video.copyright) return;
+    
+    const cr = video.copyright;
+    
+    let licenseText = "Không có thông tin";
+    if (cr.license === "youtube") licenseText = "YouTube Standard License";
+    else if (cr.license === "creativeCommon") licenseText = "Creative Commons";
+    
+    document.getElementById('modal-cr-score').innerText = `${cr.score}% • ${cr.level}`;
+    document.getElementById('modal-cr-licensed').innerText = cr.licensedContent ? "Có tín hiệu partner claim" : "Không có tín hiệu partner claim";
+    document.getElementById('modal-cr-license').innerText = licenseText;
+    document.getElementById('modal-cr-credit').innerText = cr.creditFound ? "Có" : "Không phát hiện";
+    document.getElementById('modal-cr-embed').innerText = cr.embeddable ? "Có" : "Không";
+    document.getElementById('modal-cr-region').innerText = cr.regionRestriction ? "Có hạn chế" : "Không phát hiện hạn chế";
+    
+    modal.classList.remove('hidden');
+}
+
+// Close modal
+const closeBtn = document.getElementById('btn-close-modal');
+if (closeBtn) {
+    closeBtn.addEventListener('click', () => {
+        document.getElementById('copyright-modal').classList.add('hidden');
+    });
 }
 
 function escapeHTML(str) {

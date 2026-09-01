@@ -59,6 +59,105 @@ function saveToCache(query, pageToken = "", data) {
 }
 
 /**
+ * Fetches batch video details using videos.list
+ */
+async function fetchVideoDetails(videoIds) {
+    if (!videoIds || videoIds.length === 0) return {};
+    
+    const url = new URL("https://www.googleapis.com/youtube/v3/videos");
+    url.searchParams.append("part", "snippet,status,contentDetails");
+    url.searchParams.append("id", videoIds.join(","));
+    url.searchParams.append("key", YOUTUBE_API_KEY);
+    
+    try {
+        const res = await fetch(url);
+        if (!res.ok) return {};
+        const data = await res.json();
+        
+        const detailsMap = {};
+        data.items.forEach(item => {
+            detailsMap[item.id] = item;
+        });
+        return detailsMap;
+    } catch (e) {
+        console.error("Error fetching video details", e);
+        return {};
+    }
+}
+
+/**
+ * Calculates a transparency score based on metadata and heuristics
+ */
+function calculateTransparencyScore(videoDetail, searchSnippet) {
+    if (!videoDetail) {
+        return {
+            score: 0,
+            level: "Chưa rõ",
+            licensedContent: false,
+            license: "Không có thông tin",
+            creditFound: false,
+            embeddable: true,
+            regionRestriction: false,
+            fetchFailed: true
+        };
+    }
+
+    let score = 0;
+    
+    // Primary Signals
+    const licensedContent = videoDetail.contentDetails?.licensedContent || false;
+    if (licensedContent) {
+        score += 50; // Strong signal of official partner metadata
+    }
+    
+    const license = videoDetail.status?.license || "youtube";
+    if (license === "creativeCommon") {
+        score += 20; // Clear licensing intent
+    } else if (license === "youtube") {
+        score += 10; // Standard, still a valid signal
+    }
+    
+    // Secondary Signals (Heuristics)
+    let creditFound = false;
+    const description = (videoDetail.snippet?.description || searchSnippet?.description || "").toLowerCase();
+    
+    const creditKeywords = ["©", "℗", "composer", "songwriter", "publisher", "licensed by", "copyright", "all rights reserved", "tác giả", "sáng tác", "nhạc sĩ", "phát hành", "bản quyền"];
+    
+    for (const kw of creditKeywords) {
+        if (description.includes(kw)) {
+            creditFound = true;
+            break;
+        }
+    }
+    
+    if (creditFound) {
+        score += 20;
+    }
+    
+    // Cap score at 100
+    score = Math.min(100, score);
+    score = Math.max(0, score);
+    
+    let level = "Thấp";
+    if (score >= 80) level = "Cao";
+    else if (score >= 50) level = "Trung bình";
+    
+    const embeddable = videoDetail.status?.embeddable !== false;
+    const regionRestriction = !!videoDetail.contentDetails?.regionRestriction;
+
+    return {
+        score: score,
+        level: level,
+        licensedContent: licensedContent,
+        license: license,
+        creditFound: creditFound,
+        embeddable: embeddable,
+        regionRestriction: regionRestriction,
+        fetchFailed: false
+    };
+}
+
+/**
  * Builds the final YouTube search query based on input parameters
  */
 export function buildSearchQuery({ keyword = "", artist = "", categoryQuery = "" }) {
@@ -148,6 +247,9 @@ export async function searchYouTube(queryParameters, pageToken = "") {
         
         const data = await response.json();
         
+        const videoIds = data.items.map(item => item.id.videoId);
+        const detailsMap = await fetchVideoDetails(videoIds);
+        
         const results = data.items.map(item => {
             const rawTitle = item.snippet.title;
             const channel = item.snippet.channelTitle;
@@ -183,7 +285,8 @@ export async function searchYouTube(queryParameters, pageToken = "") {
                     tone: tone,
                     author: author,
                     producer: channel
-                }
+                },
+                copyright: calculateTransparencyScore(detailsMap[item.id.videoId], item.snippet)
             };
         });
 

@@ -145,6 +145,54 @@
         <div class="spinner"></div>
     </div>
 
+    <!-- Copyright Transparency Modal -->
+    <div id="copyright-modal" class="modal hidden">
+        <div class="modal-content" style="max-width: 400px; margin: 2rem auto; background: var(--surface-color); padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border-color); text-align: left;">
+            <h3 style="margin-top: 0; color: white; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; margin-bottom: 1rem;">Chi tiết Bản quyền</h3>
+            
+            <div class="cr-detail-row" style="margin-bottom: 0.8rem; font-size: 0.95rem;">
+                <span class="cr-label" style="color: var(--text-secondary); display: block; margin-bottom: 0.2rem;">Mức độ minh bạch bản quyền:</span>
+                <span class="cr-value" id="modal-cr-score" style="color: white; font-weight: bold;"></span>
+            </div>
+            
+            <div class="cr-detail-row" style="margin-bottom: 0.8rem; font-size: 0.95rem;">
+                <span class="cr-label" style="color: var(--text-secondary); display: block; margin-bottom: 0.2rem;">Licensed Content:</span>
+                <span class="cr-value" id="modal-cr-licensed" style="color: white;"></span>
+            </div>
+            
+            <div class="cr-detail-row" style="margin-bottom: 0.8rem; font-size: 0.95rem;">
+                <span class="cr-label" style="color: var(--text-secondary); display: block; margin-bottom: 0.2rem;">Giấy phép:</span>
+                <span class="cr-value" id="modal-cr-license" style="color: white;"></span>
+            </div>
+            
+            <div class="cr-detail-row" style="margin-bottom: 0.8rem; font-size: 0.95rem;">
+                <span class="cr-label" style="color: var(--text-secondary); display: block; margin-bottom: 0.2rem;">Credit trong mô tả:</span>
+                <span class="cr-value" id="modal-cr-credit" style="color: white;"></span>
+            </div>
+            
+            <div class="cr-detail-row" style="margin-bottom: 0.8rem; font-size: 0.95rem;">
+                <span class="cr-label" style="color: var(--text-secondary); display: block; margin-bottom: 0.2rem;">Cho phép nhúng:</span>
+                <span class="cr-value" id="modal-cr-embed" style="color: white;"></span>
+            </div>
+            
+            <div class="cr-detail-row" style="margin-bottom: 0.8rem; font-size: 0.95rem;">
+                <span class="cr-label" style="color: var(--text-secondary); display: block; margin-bottom: 0.2rem;">Khả năng phát tại Việt Nam:</span>
+                <span class="cr-value" id="modal-cr-region" style="color: white;"></span>
+            </div>
+            
+            <div class="cr-detail-row" style="margin-bottom: 1rem; font-size: 0.95rem;">
+                <span class="cr-label" style="color: var(--text-secondary); display: block; margin-bottom: 0.2rem;">Nguồn:</span>
+                <span class="cr-value" style="color: white;">YouTube public metadata</span>
+            </div>
+            
+            <div class="cr-disclaimer" style="font-size: 0.85rem; color: var(--text-secondary); background: rgba(255,255,255,0.05); padding: 0.8rem; border-radius: 8px; margin-bottom: 1rem;">
+                Điểm này phản ánh mức độ minh bạch của metadata công khai trên YouTube, không phải xác nhận pháp lý về quyền sở hữu hoặc quyền sử dụng nội dung.
+            </div>
+            
+            <button id="btn-close-modal" class="btn-large" style="width: 100%; padding: 0.8rem;">ĐÓNG</button>
+        </div>
+    </div>
+
     <script type="module" src="./js/mobile.js?v=4"></script>
 </body>
 </html>
