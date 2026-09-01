@@ -68,7 +68,7 @@ function showLobby(roomName, roomCode) {
     document.getElementById('lobby-room-name').innerText = roomName;
     document.getElementById('lobby-room-code').innerText = roomCode;
     
-    const joinUrl = `${getBaseUrl()}/room.html?v=5&r=${roomCode}`;
+    const joinUrl = `${getBaseUrl()}/room.html?v=6&r=${roomCode}`;
     
     const qrContainer = document.getElementById('lobby-qr');
     qrContainer.innerHTML = '';
@@ -109,7 +109,7 @@ async function handleStartSession() {
                 playerView.classList.remove('hidden');
                 
                 // Show small QR
-                const joinUrl = `${getBaseUrl()}/room.html?v=5&r=${currentRoomCode}`;
+                const joinUrl = `${getBaseUrl()}/room.html?v=6&r=${currentRoomCode}`;
                 document.getElementById('footer-room-code').innerText = currentRoomCode;
                 const qrSmallContainer = document.getElementById('footer-qr');
                 qrSmallContainer.innerHTML = '';

@@ -4,7 +4,7 @@ const searchCache = {};
 const CACHE_TTL = 3600000; // 1 hour in ms
 let currentSearchController = null;
 
-const CACHE_VERSION = "v5";
+const CACHE_VERSION = "v6";
 
 /**
  * Normalizes query string for caching
