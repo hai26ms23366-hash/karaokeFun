@@ -255,6 +255,13 @@ async function performSearch(params, isLoadMore = false) {
     const pageTokenToUse = isLoadMore ? currentSearchState.nextPageToken : "";
     const response = await searchYouTube(currentSearchState.params, pageTokenToUse);
     
+    console.log("PAGINATION DEBUG", {
+        resultLength: response.results?.length,
+        nextPageToken: response.nextPageToken,
+        isLoadMore,
+        query: response.query
+    });
+    
     currentSearchState.loading = false;
     
     if (response.aborted) {

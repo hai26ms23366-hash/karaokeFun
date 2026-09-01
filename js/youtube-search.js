@@ -4,11 +4,13 @@ const searchCache = {};
 const CACHE_TTL = 3600000; // 1 hour in ms
 let currentSearchController = null;
 
+const CACHE_VERSION = "v5";
+
 /**
  * Normalizes query string for caching
  */
 function getCacheKey(query, pageToken = "") {
-    let key = "karaoke_search_" + query.trim().toLowerCase().replace(/\s+/g, ' ');
+    let key = `karaoke_search_${CACHE_VERSION}_` + query.trim().toLowerCase().replace(/\s+/g, ' ');
     if (pageToken) key += "_" + pageToken;
     return key;
 }
@@ -56,6 +58,18 @@ function saveToCache(query, pageToken = "", data) {
     } catch (e) {
         console.error("Cache write error", e);
     }
+}
+
+// Cleanup legacy localStorage cache to prevent orphaned data
+try {
+    for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith("karaoke_search_") && !k.startsWith(`karaoke_search_${CACHE_VERSION}_`)) {
+            localStorage.removeItem(k);
+        }
+    }
+} catch (e) {
+    console.error("Cache cleanup error", e);
 }
 
 /**
@@ -192,14 +206,14 @@ export async function searchYouTube(queryParameters, pageToken = "") {
 
     const cached = getFromCache(searchQuery, pageToken);
     if (cached) {
-        // Handle legacy cache format (array) - ignore and fetch fresh to get nextPageToken
-        if (Array.isArray(cached)) {
+        if (typeof cached === 'object' && cached !== null && Array.isArray(cached.results) && Object.prototype.hasOwnProperty.call(cached, "nextPageToken")) {
+            return { results: cached.results, nextPageToken: cached.nextPageToken, query: searchQuery };
+        } else {
+            // Handle legacy cache format - ignore and fetch fresh
             const key = getCacheKey(searchQuery, pageToken);
             delete searchCache[key];
             try { localStorage.removeItem(key); } catch (e) {}
             // fall through to fetch fresh
-        } else {
-            return { results: cached.results || [], nextPageToken: cached.nextPageToken || null, query: searchQuery };
         }
     }
 
