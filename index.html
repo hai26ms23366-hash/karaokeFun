@@ -52,8 +52,30 @@
 <body>
     <div class="container">
         <h1>KARAOKE</h1>
-        <p>Mở trang TV để tạo phòng karaoke.<br>Người khác dùng điện thoại quét QR để tham gia.</p>
+        <p>Mở trang TV để tạo phòng karaoke.</p>
         <a href="./tv.html" class="btn-large">MỞ TRANG TV</a>
+        
+        <div style="margin-top: 3rem; padding-top: 2rem; border-top: 1px solid var(--border-color);">
+            <p>Hoặc quét QR / nhập mã để tham gia phòng:</p>
+            <div style="display: flex; gap: 10px; justify-content: center;">
+                <input type="text" id="room-code-input" placeholder="Mã phòng (VD: ABCDEF)" style="padding: 0.8rem; font-size: 1.2rem; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-color); color: white; text-transform: uppercase; width: 250px; text-align: center;">
+                <button id="btn-join-manual" class="btn-large" style="padding: 0.8rem 1.5rem; font-size: 1.2rem;">VÀO</button>
+            </div>
+        </div>
     </div>
+
+    <script>
+        document.getElementById('btn-join-manual').addEventListener('click', () => {
+            const code = document.getElementById('room-code-input').value.trim().toUpperCase();
+            if (code) {
+                window.location.href = `./room.html?r=${code}`;
+            }
+        });
+        document.getElementById('room-code-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('btn-join-manual').click();
+            }
+        });
+    </script>
 </body>
 </html>

@@ -115,8 +115,8 @@ async function handleStartSession() {
                 qrSmallContainer.innerHTML = '';
                 new QRCode(qrSmallContainer, {
                     text: joinUrl,
-                    width: 120,
-                    height: 120,
+                    width: 160,
+                    height: 160,
                     colorDark : "#000000",
                     colorLight : "#ffffff",
                     correctLevel : QRCode.CorrectLevel.L
