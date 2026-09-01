@@ -1,0 +1,37 @@
+{
+  "rules": {
+    "rooms": {
+      "$roomCode": {
+        ".read": "auth != null",
+        ".write": "auth != null && (!data.exists() || data.child('hostUid').val() === auth.uid)",
+        
+        "hostUid": {
+           ".validate": "!data.exists() || data.val() === newData.val()"
+        },
+        
+        "participants": {
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid && root.child('rooms').child($roomCode).exists()",
+            ".validate": "newData.hasChild('joinedAt')"
+          }
+        },
+        
+        "player": {
+          ".write": "auth != null && root.child('rooms').child($roomCode).child('hostUid').val() === auth.uid"
+        },
+        
+        "queue": {
+          "$queueId": {
+            ".write": "auth != null && root.child('rooms').child($roomCode).exists() && (root.child('rooms').child($roomCode).child('hostUid').val() === auth.uid || !data.exists() || (data.exists() && data.child('addedByUid').val() === auth.uid && data.child('status').val() === 'waiting'))"
+          }
+        },
+        
+        "commands": {
+          "$commandId": {
+            ".write": "auth != null && root.child('rooms').child($roomCode).exists() && ( (!data.exists() && newData.child('handled').val() === false) || (data.exists() && root.child('rooms').child($roomCode).child('hostUid').val() === auth.uid) )"
+          }
+        }
+      }
+    }
+  }
+}

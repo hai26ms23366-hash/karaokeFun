@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Karaoke TV</title>
+    <link rel="stylesheet" href="./css/common.css">
+    <link rel="stylesheet" href="./css/tv.css">
+    
+    <!-- QRCode JS via CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+    <!-- STATE 1: Create Room -->
+    <div id="create-room-view" class="view-container">
+        <h1>KARAOKE</h1>
+        <div class="form-group">
+            <label for="room-name">Tên phòng</label>
+            <input type="text" id="room-name" value="Phòng khách" placeholder="Nhập tên phòng...">
+        </div>
+        <button id="btn-create-room" class="btn-primary">TẠO PHÒNG</button>
+        <div id="create-error" class="error-msg hidden"></div>
+    </div>
+
+    <!-- STATE 2: Room Lobby (Before playing) -->
+    <div id="lobby-view" class="view-container hidden">
+        <h1 id="lobby-room-name">Tên phòng</h1>
+        <div class="room-code-display">
+            Mã phòng: <span id="lobby-room-code"></span>
+        </div>
+        <div class="qr-container" id="lobby-qr"></div>
+        <p class="qr-instruction">Quét QR để chọn bài</p>
+        <button id="btn-start-session" class="btn-primary">BẮT ĐẦU PHIÊN HÁT</button>
+        <button id="btn-close-room-lobby" class="btn-secondary" style="margin-top: 1rem;">ĐÓNG PHÒNG</button>
+    </div>
+
+    <!-- STATE 3: Playing -->
+    <div id="player-view" class="view-container hidden">
+        <div class="player-wrapper">
+            <div id="youtube-player"></div>
+            <!-- Overlay for when there is no video playing -->
+            <div id="player-overlay" class="overlay hidden">
+                <h2 id="overlay-msg">Chưa có bài trong hàng đợi</h2>
+            </div>
+        </div>
+        <div class="tv-footer">
+            <div class="info-section">
+                <div class="now-playing">
+                    Đang phát: <span id="current-song-title">Không có</span>
+                </div>
+                <div class="next-playing">
+                    Tiếp theo: <span id="next-song-title">Không có</span>
+                </div>
+            </div>
+            <div class="room-section">
+                <div class="room-info">
+                    <div>Phòng <span id="footer-room-code"></span></div>
+                    <button id="btn-close-room-player" class="btn-small">ĐÓNG PHÒNG</button>
+                </div>
+                <div id="footer-qr" class="qr-small"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="fullscreen-overlay hidden">
+        <div class="spinner"></div>
+        <p id="loading-text">Đang tải...</p>
+    </div>
+
+    <script type="module" src="./js/tv.js"></script>
+</body>
+</html>

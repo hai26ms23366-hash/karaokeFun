@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Karaoke Remote</title>
+    <link rel="stylesheet" href="./css/common.css">
+    <link rel="stylesheet" href="./css/mobile.css">
+</head>
+<body>
+    <!-- STATE 1: Join Room -->
+    <div id="join-view" class="view-container">
+        <h1 id="join-room-name">Đang kết nối...</h1>
+        <div id="join-form" class="hidden">
+            <div class="form-group">
+                <label for="nickname">Tên của bạn</label>
+                <input type="text" id="nickname" placeholder="Ví dụ: Hải">
+            </div>
+            <button id="btn-join" class="btn-primary">VÀO PHÒNG</button>
+        </div>
+        <div id="join-error" class="error-msg hidden"></div>
+    </div>
+
+    <!-- STATE 2: Main App -->
+    <div id="app-view" class="app-container hidden">
+        
+        <!-- Header: Sticky Room info & Player state -->
+        <header class="mobile-header">
+            <div class="room-title">Phòng: <span id="header-room-name"></span></div>
+            <div class="player-mini-status">
+                <span id="mini-status-icon">⏸</span>
+                <span id="mini-status-title">Chưa có bài</span>
+            </div>
+        </header>
+
+        <!-- Content Area -->
+        <main class="content-area">
+            
+            <!-- TAB: SEARCH -->
+            <div id="tab-search" class="tab-content">
+                <div class="search-bar">
+                    <input type="text" id="search-input" placeholder="Nhập tên bài hát...">
+                    <button id="btn-search">TÌM</button>
+                </div>
+                <div id="search-results" class="results-list">
+                    <div class="empty-state">Tìm kiếm bài hát để thêm vào hàng đợi</div>
+                </div>
+            </div>
+
+            <!-- TAB: QUEUE -->
+            <div id="tab-queue" class="tab-content hidden">
+                <div class="queue-section">
+                    <h3>ĐANG PHÁT</h3>
+                    <div id="now-playing-item" class="queue-item playing">
+                        <div class="empty-state">Chưa có bài đang phát</div>
+                    </div>
+                </div>
+                <div class="queue-section">
+                    <h3>HÀNG ĐỢI</h3>
+                    <div id="queue-list" class="results-list">
+                        <!-- Queue items will be injected here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: CONTROL -->
+            <div id="tab-control" class="tab-content hidden">
+                <div class="control-panel">
+                    <div class="control-grid">
+                        <button class="btn-control" data-command="PREVIOUS">
+                            <span class="icon">⏮</span>
+                            <span>PREV</span>
+                        </button>
+                        <button class="btn-control btn-play-pause" data-command="PLAY">
+                            <span class="icon">▶</span>
+                            <span>PLAY</span>
+                        </button>
+                        <button class="btn-control btn-play-pause" data-command="PAUSE">
+                            <span class="icon">⏸</span>
+                            <span>PAUSE</span>
+                        </button>
+                        <button class="btn-control" data-command="NEXT">
+                            <span class="icon">⏭</span>
+                            <span>NEXT</span>
+                        </button>
+                    </div>
+                    <div id="control-msg" class="success-msg hidden"></div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Bottom Navigation -->
+        <nav class="bottom-nav">
+            <button class="nav-item active" data-target="tab-search">
+                <span class="nav-icon">🔍</span>
+                <span>Tìm bài</span>
+            </button>
+            <button class="nav-item" data-target="tab-queue">
+                <span class="nav-icon">📋</span>
+                <span>Hàng đợi</span>
+            </button>
+            <button class="nav-item" data-target="tab-control">
+                <span class="nav-icon">🎮</span>
+                <span>Điều khiển</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast hidden"></div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="fullscreen-overlay hidden">
+        <div class="spinner"></div>
+    </div>
+
+    <script type="module" src="./js/mobile.js"></script>
+</body>
+</html>
