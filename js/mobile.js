@@ -195,11 +195,50 @@ function setupSearch() {
     inputKeyword.addEventListener('keypress', onEnter);
     inputArtist.addEventListener('keypress', onEnter);
     
-    document.getElementById('btn-load-more').addEventListener('click', () => {
-        if (currentSearchState.params && currentSearchState.nextPageToken) {
-            performSearch(currentSearchState.params, true);
-        }
+    setupInfiniteScroll();
+}
+
+function isSearchTabActive() {
+    const searchNav = document.querySelector('.nav-item[data-target="tab-search"]');
+    return searchNav && searchNav.classList.contains('active');
+}
+
+function setupInfiniteScroll() {
+    const sentinel = document.getElementById('search-load-sentinel');
+    const root = document.querySelector('.content-area'); // The scroll container
+    
+    if (!sentinel || !root) return;
+
+    const observer = new IntersectionObserver((entries) => {
+        const entry = entries[0];
+        
+        if (!entry.isIntersecting) return;
+        if (!isSearchTabActive()) return;
+        if (currentSearchState.loading) return;
+        if (!currentSearchState.params) return;
+        if (!currentSearchState.nextPageToken) return;
+        if (currentSearchState.resultCount >= MAX_SEARCH_RESULTS) return;
+
+        // Prevent repeated token requests
+        if (currentSearchState.requestedPageTokens.has(currentSearchState.nextPageToken)) return;
+        
+        performSearch(currentSearchState.params, true);
+    }, {
+        root: root,
+        rootMargin: '300px 0px',
+        threshold: 0
     });
+
+    observer.observe(sentinel);
+    
+    const loadStatusEl = document.getElementById('search-load-status');
+    if (loadStatusEl) {
+        loadStatusEl.addEventListener('click', () => {
+            if (loadStatusEl.classList.contains('error') && !currentSearchState.loading && currentSearchState.nextPageToken) {
+                performSearch(currentSearchState.params, true);
+            }
+        });
+    }
 }
 
 let lastSearchResultsHTML = '<div class="empty-state">Nhập tên bài hát hoặc ca sĩ để tìm kiếm</div>';
@@ -242,14 +281,27 @@ async function performSearch(params, isLoadMore = false) {
             resultCount: 0,
             loading: true,
             displayedIds: new Set(),
-            allResults: []
+            allResults: [],
+            requestedPageTokens: new Set()
         };
         showSearchStatus('Đang tìm kiếm...', 'loading');
         resultsContainer.style.opacity = '0.5';
-        if (loadMoreBtn) loadMoreBtn.classList.add('hidden');
+        
+        const loadStatusEl = document.getElementById('search-load-status');
+        if (loadStatusEl) loadStatusEl.classList.add('hidden');
     } else {
         currentSearchState.loading = true;
-        if (loadMoreBtn) loadMoreBtn.innerText = 'ĐANG TẢI...';
+        
+        const loadStatusEl = document.getElementById('search-load-status');
+        if (loadStatusEl) {
+            loadStatusEl.innerText = '⟳ Đang tải thêm...';
+            loadStatusEl.classList.remove('hidden');
+            loadStatusEl.classList.remove('error');
+        }
+        
+        if (currentSearchState.nextPageToken) {
+            currentSearchState.requestedPageTokens.add(currentSearchState.nextPageToken);
+        }
     }
     
     const pageTokenToUse = isLoadMore ? currentSearchState.nextPageToken : "";
@@ -275,9 +327,14 @@ async function performSearch(params, isLoadMore = false) {
             showSearchStatus(response.errorMsg, 'error');
             resultsContainer.innerHTML = lastSearchResultsHTML;
         } else {
-            if (loadMoreBtn) {
-                loadMoreBtn.innerText = 'THỬ LẠI';
-                loadMoreBtn.classList.remove('hidden');
+            const loadStatusEl = document.getElementById('search-load-status');
+            if (loadStatusEl) {
+                loadStatusEl.innerText = 'Không thể tải thêm. Cuộn lại để thử.';
+                loadStatusEl.classList.add('error');
+            }
+            // Remove the token from requested so it can be retried
+            if (currentSearchState.nextPageToken) {
+                currentSearchState.requestedPageTokens.delete(currentSearchState.nextPageToken);
             }
             showToast(response.errorMsg, true);
         }
@@ -389,19 +446,18 @@ function renderSearchResults(results, append = false) {
     
     lastSearchResultsHTML = container.innerHTML;
     
-    if (loadMoreBtn) {
-        if (currentSearchState.nextPageToken && currentSearchState.resultCount < MAX_SEARCH_RESULTS) {
-            loadMoreBtn.innerText = 'XEM THÊM';
-            loadMoreBtn.classList.remove('hidden');
-            loadMoreBtn.disabled = false;
-            loadMoreBtn.style.opacity = '1';
-        } else if (currentSearchState.resultCount >= MAX_SEARCH_RESULTS) {
-            loadMoreBtn.innerText = `Đã hiển thị ${currentSearchState.resultCount} kết quả`;
-            loadMoreBtn.classList.remove('hidden');
-            loadMoreBtn.disabled = true;
-            loadMoreBtn.style.opacity = '0.5';
+    const loadStatusEl = document.getElementById('search-load-status');
+    if (loadStatusEl) {
+        if (currentSearchState.resultCount >= MAX_SEARCH_RESULTS) {
+            loadStatusEl.innerText = `Đã hiển thị ${currentSearchState.resultCount} kết quả`;
+            loadStatusEl.classList.remove('hidden');
+            loadStatusEl.classList.remove('error');
+        } else if (!currentSearchState.nextPageToken && append) {
+            loadStatusEl.innerText = `Đã hiển thị hết kết quả`;
+            loadStatusEl.classList.remove('hidden');
+            loadStatusEl.classList.remove('error');
         } else {
-            loadMoreBtn.classList.add('hidden');
+            loadStatusEl.classList.add('hidden');
         }
     }
 }

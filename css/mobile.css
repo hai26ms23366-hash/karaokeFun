@@ -199,22 +199,21 @@ body {
     color: var(--primary-color);
 }
 
-.btn-load-more {
+.search-load-status {
     width: 100%;
     margin-top: 1rem;
     padding: 1rem;
-    background: transparent;
-    color: white;
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    font-weight: bold;
-    text-transform: uppercase;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
 }
-.btn-load-more:disabled {
-    opacity: 0.5;
+.search-load-status.error {
+    color: var(--error-color);
+    cursor: pointer;
 }
-.btn-load-more:active {
-    background: var(--border-color);
+#search-load-sentinel {
+    height: 1px;
+    width: 100%;
 }
 
 .results-list {

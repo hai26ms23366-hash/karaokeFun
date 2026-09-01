@@ -75,7 +75,7 @@ try {
 /**
  * Fetches batch video details using videos.list
  */
-async function fetchVideoDetails(videoIds) {
+async function fetchVideoDetails(videoIds, signal) {
     if (!videoIds || videoIds.length === 0) return {};
     
     const url = new URL("https://www.googleapis.com/youtube/v3/videos");
@@ -84,7 +84,7 @@ async function fetchVideoDetails(videoIds) {
     url.searchParams.append("key", YOUTUBE_API_KEY);
     
     try {
-        const res = await fetch(url);
+        const res = await fetch(url, { signal });
         if (!res.ok) return {};
         const data = await res.json();
         
@@ -262,7 +262,9 @@ export async function searchYouTube(queryParameters, pageToken = "") {
         const data = await response.json();
         
         const videoIds = data.items.map(item => item.id.videoId);
-        const detailsMap = await fetchVideoDetails(videoIds);
+        
+        // Fetch detailed info
+        const detailsMap = await fetchVideoDetails(videoIds, signal);
         
         const results = data.items.map(item => {
             const rawTitle = item.snippet.title;
